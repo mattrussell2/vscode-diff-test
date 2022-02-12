@@ -1,5 +1,5 @@
 {
-    "name": "exec-test",
+    "name": "diff-test",
     "displayName": "Unit Testing Framework",
     "description": "Unit Testing Framework",
     "enableApiProposals": false,
@@ -19,27 +19,27 @@
         "configuration": {
             "title": "Unit Testing Framework",
             "properties": {
-                "cpp-unit-test.build.runMakeCleanOnExit": {
+                "diff-test.build.runMakeCleanOnExit": {
                     "type": "boolean",
                     "default": "true",
                     "description": "If true, run `make clean` after running tests"
                 },
-                "cpp-unit-test.run.timeoutTime": {
+                "diff-test.run.timeoutTime": {
                     "type": "integer",
                     "default": "60",
                     "description": "Max time per test (in seconds)."
                 },
-                "cpp-unit-test.run.valgrindTimeoutTime": {
+                "diff-test.run.valgrindTimeoutTime": {
                     "type": "integer",
                     "default": "60",
                     "description": "Max time per valgrind test (in seconds)."
                 },
-                "cpp-unit-test.valgrind.runWithValgrind": {
+                "diff-test.valgrind.runWithValgrind": {
                     "type": "boolean",
                     "default": "true",
                     "description": "whether or not to run valgrind on tests"
                 },
-                "cpp-unit-test.valgrind.valgrindFlags": {
+                "diff-test.valgrind.valgrindFlags": {
                     "type": "string",
                     "default": "--track-origins=yes --leak-check=full --show-leak-kinds=all",
                     "description": "options for valgrind - default is: `--track-origins=yes --leak-check=full --show-leak-kinds=all`. NOTE: Valgrind is also run with --error-exitcode=1; this is not optional"
@@ -60,7 +60,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://www.github.com/mattrussell2/vscode-cpp-unit-test"
+        "url": "https://www.github.com/mattrussell2/vscode-diff-test"
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",

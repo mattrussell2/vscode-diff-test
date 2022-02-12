@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
 import { TestCase, testData, TestFile } from './testTree';
-import { generateDriver, cleanup, execShellCommand, getFileUri, 
-         getMakefileTarget, getDriverFileName, getCwdUri,
-         getDriverCppCleanUpOnBuild} from './driverUtils';
+import { cleanup, execShellCommand, getMakefileTarget, getCwdUri } from './driverUtils';
 import { exit } from 'process';
 
 export async function activate(context: vscode.ExtensionContext) {  
@@ -47,12 +45,11 @@ export async function activate(context: vscode.ExtensionContext) {
         };
 
         const runTestQueue = async () => { 
-            await generateDriver(queue);   
             const makeResult = await runMake();
 
             if (makeResult !== "passed") {            
                 run.appendOutput(`Compilation Failed\r\n`);
-                const data = new TestCase("compilation", 0);
+                const data = new TestCase("compilation", {}, 0);
                 const id = `${queue[0].test.uri}/${"data.getLabel()"}`;            
                 const tcase = ctrl.createTestItem(id, data.getLabel(), queue[0].test.uri);
                 testData.set(tcase, data);
@@ -96,7 +93,7 @@ export async function activate(context: vscode.ExtensionContext) {
     };
 
     function updateNodeForDocument(e: vscode.TextDocument) {
-        if (e.uri.scheme !== 'file' || !e.uri.path.endsWith('_tests.h')) {
+        if (e.uri.scheme !== 'file' || !e.uri.path.includes('.toml')) {
             return;
         }    
 

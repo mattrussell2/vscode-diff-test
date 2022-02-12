@@ -33,16 +33,7 @@ async function activate(context) {
             }
         };
         const runMake = async function () {
-            let compileDriverResult = await driverUtils_1.execShellCommand('clang++ -std=c++14 -c unit_test_driver.cpp -o ' +
-                driverUtils_1.getDriverFileName(), { cwd: driverUtils_1.getCwdUri().fsPath });
-            if (!compileDriverResult.passed) {
-                return compileDriverResult.stderr;
-            }
-            // run make after parsing the test file.  
-            // by default, exec needs a path
             const makeResult = await driverUtils_1.execShellCommand('make ' + driverUtils_1.getMakefileTarget(), { cwd: driverUtils_1.getCwdUri().fsPath });
-            // guaranteed that the driver .o file has been built
-            vscode.workspace.fs.delete(driverUtils_1.getFileUri(driverUtils_1.getCwdUri(), driverUtils_1.getDriverFileName()));
             if (makeResult.passed) {
                 return "passed";
             }
@@ -51,11 +42,10 @@ async function activate(context) {
             }
         };
         const runTestQueue = async () => {
-            await driverUtils_1.generateDriver(queue);
             const makeResult = await runMake();
             if (makeResult !== "passed") {
                 run.appendOutput(`Compilation Failed\r\n`);
-                const data = new testTree_1.TestCase("compilation", 0);
+                const data = new testTree_1.TestCase("compilation", {}, 0);
                 const id = `${queue[0].test.uri}/${"data.getLabel()"}`;
                 const tcase = ctrl.createTestItem(id, data.getLabel(), queue[0].test.uri);
                 testTree_1.testData.set(tcase, data);
@@ -94,7 +84,7 @@ async function activate(context) {
         }
     };
     function updateNodeForDocument(e) {
-        if (e.uri.scheme !== 'file' || !e.uri.path.endsWith('_tests.h')) {
+        if (e.uri.scheme !== 'file' || !e.uri.path.includes('.toml')) {
             return;
         }
         const { file, data } = getOrCreateFile(ctrl, e.uri);

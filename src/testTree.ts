@@ -60,31 +60,17 @@ export class TestFile {
                 finished.item.children.replace(finished.children);
             }
         };
-
         parseTestsFile(content, {
-            onTest: (range, name) => { 
-                console.log("parsing tests file -- name: ", name);
+            onTest: (range, name, testDict) => { 
                 const parent = ancestors[ancestors.length - 1];
-                const data = new TestCase(name, thisGeneration);
+                const data = new TestCase(name, testDict, thisGeneration);
                 const id = `${item.uri}/${data.getLabel()}`;        
 
                 const tcase = controller.createTestItem(id, data.getLabel(), item.uri);
                 testData.set(tcase, data);
                 tcase.range = range;
                 parent.children.push(tcase);
-            },
-
-            onHeading: (range, name, depth) => {
-                ascend(depth);
-                const parent = ancestors[ancestors.length - 1];
-                const id = `${item.uri}/${name}`;
-
-                const thead = controller.createTestItem(id, name, item.uri);
-                thead.range = range;
-                testData.set(thead, new TestHeading(thisGeneration));
-                parent.children.push(thead);
-                ancestors.push({ item: thead, children: [] });
-            },
+            }
         });
 
         ascend(0); // finish and assign children for all remaining items
@@ -97,11 +83,12 @@ export class TestHeading {
 
 export class TestCase {
     constructor(
-        private readonly name: String,       
+        private readonly name: String,  
+        private testDict: Object,     
         public generation: number,
         private passed?: boolean
     ) {
-         this.passed = false;
+         this.passed = false; 
     }
 
     getLabel() {

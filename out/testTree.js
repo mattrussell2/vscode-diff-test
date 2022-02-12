@@ -54,26 +54,15 @@ class TestFile {
             }
         };
         parser_1.parseTestsFile(content, {
-            onTest: (range, name) => {
-                console.log("parsing tests file -- name: ", name);
+            onTest: (range, name, testDict) => {
                 const parent = ancestors[ancestors.length - 1];
-                const data = new TestCase(name, thisGeneration);
+                const data = new TestCase(name, testDict, thisGeneration);
                 const id = `${item.uri}/${data.getLabel()}`;
                 const tcase = controller.createTestItem(id, data.getLabel(), item.uri);
                 exports.testData.set(tcase, data);
                 tcase.range = range;
                 parent.children.push(tcase);
-            },
-            onHeading: (range, name, depth) => {
-                ascend(depth);
-                const parent = ancestors[ancestors.length - 1];
-                const id = `${item.uri}/${name}`;
-                const thead = controller.createTestItem(id, name, item.uri);
-                thead.range = range;
-                exports.testData.set(thead, new TestHeading(thisGeneration));
-                parent.children.push(thead);
-                ancestors.push({ item: thead, children: [] });
-            },
+            }
         });
         ascend(0); // finish and assign children for all remaining items
     }
@@ -86,8 +75,9 @@ class TestHeading {
 }
 exports.TestHeading = TestHeading;
 class TestCase {
-    constructor(name, generation, passed) {
+    constructor(name, testDict, generation, passed) {
         this.name = name;
+        this.testDict = testDict;
         this.generation = generation;
         this.passed = passed;
         this.passed = false;

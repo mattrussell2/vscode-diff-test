@@ -38,6 +38,14 @@ export function getRunMakeCleanOnExit() : boolean {
     return getBoolConfiguration('build')['runMakeCleanOnExit'];    
 }
 
+export function getMakefileTarget() : string {
+    return "";
+}
+
+export function getExecutableFileName() : string {
+    return "a.out"
+}
+
 export const writeLocalFile = async function(filecontents:string, fName:string) {   
     const fileUri = getFileUri(getCwdUri(), fName);
     var enc = new TextEncoder();
