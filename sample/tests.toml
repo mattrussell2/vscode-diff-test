@@ -1,0 +1,30 @@
+# example diff test config file
+# matt russell
+
+[config]
+exec           = "run"             
+ref_exec       = "reference"
+build_target   = "build"                 
+
+# command executed:  ./run 
+[tests.test0]
+
+# ./run tests/t_infiles/file1
+[tests.test1]
+argv = ["tests/t_infiles/file1"]
+
+# ./run < tests/t_stdin/test1
+[tests.test2]
+stdin_file = "tests/t_stdin/test1"
+
+# ./run tests/t_infiles/file1 tests/t_outfiles/myoutputfile < tests/t_stdin/test1
+[tests.test3]
+argv          = ["tests/t_infiles/file1", "tests/t_outfiles/myoutputfile"] 
+stdin_file    = "tests/t_stdin/test1"          
+
+# ./run tests/t_infiles/file1 tests/t_outfiles/myoutputfile < tests/t_stdin/test1
+# also, any files in created_files will be diff'd with reference.
+[tests.test4]
+argv          = ["tests/t_infiles/file1", "tests/t_outfiles/myoutputfile"] 
+stdin_file    = "tests/t_stdin/test1"  
+created_files = ["tests/t_outfiles/myoutputfile"]

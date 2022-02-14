@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { TextDecoder } from 'util';
-import { parseTestsFile } from './parser';
+import { referenceExecutable, executableFileName, 
+         parseTestsFile, buildTarget} from './parser'; //, stdinDir 
 import { join } from 'path';
 import { execShellCommand, getCwdUri, getExecutableFileName, 
          getTimeoutTime, getValgrindTimeoutTime, writeLocalFile, 
@@ -87,26 +88,27 @@ export class TestCase {
         private testDict: any,     
         public generation: number,
         private passed?: boolean, 
-        private input_args?: String[],
-        private stdin_file?: String,
-        private output_files?: String[],
-        private run_valgrind?: boolean,
-        private diff_stderr?: boolean,
+        private argv?: string[],
+        private stdin_file?: string,
+        private output_files?: string[],
+        //private run_valgrind?: boolean,
+        //private diff_stderr?: boolean,
     ) {
         this.passed       = false; 
         
-        this.input_args   = testDict["input_args"]   ?? [];
+        this.argv         = testDict["argv"]         ?? [];
         this.stdin_file   = testDict["stdin_file"]   ?? "";
-        this.output_files = testDict["output_files"] ?? [];
-        this.run_valgrind = testDict["run_valgrind"] ?? true;
-        this.diff_stderr  = testDict["diff_stderr"]  ?? "";
+        this.output_files = testDict["created_files"] ?? [];
+        //this.run_valgrind = testDict["run_valgrind"] ?? true;
+        //this.diff_stderr  = testDict["diff_stderr"]  ?? "";
     }
 
     getLabel() {
         return `${this.name}`;
     }
     
-    private setFail(report: vscode.TestMessage, item: vscode.TestItem, opt: vscode.TestRun, duration: number) : void {                               
+    private setFail(report: vscode.TestMessage, item: vscode.TestItem, 
+                    opt: vscode.TestRun, duration: number) : void {                               
         report.location = new vscode.Location(item.uri!, item.range!);
         opt.failed(item, report, duration);
     }
@@ -127,6 +129,21 @@ export class TestCase {
         this.setFail(new vscode.TestMessage(failMessage), item, options, duration);
     }
 
+    private getOutputFiles() : string[]{
+        var outfiles:string[] = [];
+        for (let output_file of this.output_files ?? []) {            
+            const outfpath = join(getCwdUri().fsPath, output_file);
+            if (!existsSync(outfpath)) {
+                outfiles.push("");
+            }else{
+                outfiles.push(readFileSync(outfpath).toString('utf-8'));
+                unlinkSync(outfpath);
+            }                
+        }
+        console.log(outfiles);
+        return outfiles;
+    }
+
     async run(item: vscode.TestItem, options: vscode.TestRun) : Promise<void> {
         
         if (!vscode.workspace.workspaceFolders) {
@@ -136,30 +153,71 @@ export class TestCase {
        
         const timeouttime  = getTimeoutTime().toString();
         const valgrindtime = getValgrindTimeoutTime().toString();               
-        const execPath     = join(getCwdUri().fsPath, getExecutableFileName());      
+                
+        const execPath     = join(getCwdUri().fsPath, executableFileName); 
+        const refPath      = join(getCwdUri().fsPath, referenceExecutable);        
+        const stdinPath    = join(getCwdUri().fsPath); //, stdinDir);        
+        const stdinFile    = this.stdin_file ?? "";
+
+        console.log(execPath);
 
         const start        = Date.now();    
-        const result       = await execShellCommand(execPath + ' ' + this.name, {}, timeouttime);   
-        let duration       = Date.now() - start;
+
+        // ADD INPUT ARGS TO EXEC        
+        var appendArgs:string = " ";
+        for (let arg of this.argv ?? []) {
+            appendArgs += join(getCwdUri().fsPath, arg) + " ";
+        }
+        appendArgs += " < " + join(stdinPath, stdinFile);
+        
+        const result       = await execShellCommand(execPath + appendArgs, {}, timeouttime);           
+        const studOutfiles = this.getOutputFiles();        
+        
+        // ordering is important - get student output files before reference overwrites them.
+        const refResult    = await execShellCommand(refPath  + appendArgs, {}, timeouttime);        
+        const refOutfiles  = this.getOutputFiles();
+        
+        let duration = Date.now() - start;
 
         if (result.passed) {
             this.passed = true;
 
-            // run the diff test, if a file to diff exists
-            const diffFilePath = join(getCwdUri().fsPath, 'stdout/' + this.name);  
-            if (existsSync(diffFilePath)) {
-                const diffFile = readFileSync(diffFilePath).toString('utf-8');                    
-                if (diffFile !== result.stdout) {                       
-                    this.setFail(vscode.TestMessage.diff("diff failed!\n------------\n", result.stdout, diffFile),
-                                 item, options, duration);
-                    this.passed = false;
-                }
+            if (result.stdout !== refResult.stdout) {                
+                this.setFail(vscode.TestMessage.diff("stdout diff failed\n",
+                                                      refResult.stdout,
+                                                      result.stdout),
+                             item, options, duration);
+                this.passed = false;            
             }
 
+            else if (result.stderr !== refResult.stderr) {                
+                this.setFail(vscode.TestMessage.diff("stderr diff failed\n", 
+                                                     refResult.stderr, result.stderr),
+                             item, options, duration);
+                this.passed = false;            
+            }
+            
+            else if (this.output_files) {
+                console.log(this.output_files);
+                for (let i = 0; i < this.output_files.length; i++) {
+                    if (studOutfiles[i] !== refOutfiles[i]) {
+                        this.setFail(vscode.TestMessage.diff("output file mismatch: " + 
+                                                            this.output_files[i] + '\n', 
+                                                            refOutfiles[i], studOutfiles[i]),
+                                    item, options, duration);
+                        this.passed = false;
+                    }                    
+                }
+            }
+            
+
             // run the valgrind test, if user has set the option (is set to true by default)
-            if (getRunWithValgrind()) {                                
-                const valgrindResult = await execShellCommand('valgrind ' + getValgrindFlags() + ' --error-exitcode=1' +
-                                                              ' ' + execPath + ' ' + this.name, {}, valgrindtime);                                
+            else if (getRunWithValgrind()) {                                
+                const valgrindResult = await execShellCommand('valgrind ' + getValgrindFlags() +
+                                                              ' --error-exitcode=1' + ' ' +
+                                                               execPath + appendArgs, 
+                                                               {},
+                                                               valgrindtime);                                
                 duration = Date.now() - start;
                 if (!valgrindResult.passed) {                                                 
                     this.reportFail(valgrindResult, valgrindtime, item, options, duration); 

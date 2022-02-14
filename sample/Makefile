@@ -12,5 +12,5 @@ main.o: main.cpp
 reference: reference_main.o
 	$(CXX) reference_main.o -o reference
 
-reference.o: reference_main.cpp
-	$(CXX) -c reference_main.cpp
+reference_main.o: tests/reference_main.cpp
+	$(CXX) -c tests/reference_main.cpp

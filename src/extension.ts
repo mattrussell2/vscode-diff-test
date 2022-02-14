@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { TestCase, testData, TestFile } from './testTree';
-import { cleanup, execShellCommand, getMakefileTarget, getCwdUri } from './driverUtils';
+import { cleanup, execShellCommand, getCwdUri } from './driverUtils';
+import { buildTarget } from './parser';
 import { exit } from 'process';
 
 export async function activate(context: vscode.ExtensionContext) {  
@@ -34,27 +35,17 @@ export async function activate(context: vscode.ExtensionContext) {
                 }
             };    
 
-        const runMake = async function() : Promise<string> {                                     
-            const makeResult = await execShellCommand('make ' + getMakefileTarget(),
-                                                      { cwd: getCwdUri().fsPath });                                                              
-            if (makeResult.passed) {                    
-                return "passed";
-            }else {
-                return makeResult.stderr;
-            }          
-        };
-
         const runTestQueue = async () => { 
-            const makeResult = await runMake();
+            const made = await execShellCommand('make ' + buildTarget, { cwd: getCwdUri().fsPath }); 
 
-            if (makeResult !== "passed") {            
+            if (!made.passed) {
                 run.appendOutput(`Compilation Failed\r\n`);
                 const data = new TestCase("compilation", {}, 0);
                 const id = `${queue[0].test.uri}/${"data.getLabel()"}`;            
                 const tcase = ctrl.createTestItem(id, data.getLabel(), queue[0].test.uri);
                 testData.set(tcase, data);
                 run.started(tcase);
-                let message = new vscode.TestMessage(makeResult); 
+                let message = new vscode.TestMessage(made.stderr); 
                 message.location = new vscode.Location(queue[0].test.uri!, queue[0].test.range!);
                 run.failed(queue[0].test, message, 0);
                 run.end();
@@ -139,7 +130,7 @@ function startWatchingWorkspace(controller: vscode.TestController) {
     }
 
     return vscode.workspace.workspaceFolders.map(workspaceFolder => {
-        const pattern = new vscode.RelativePattern(workspaceFolder, '**/*_tests.h');
+        const pattern = new vscode.RelativePattern(workspaceFolder, '**/*.toml');
         const watcher = vscode.workspace.createFileSystemWatcher(pattern);
 
         watcher.onDidCreate(uri => getOrCreateFile(controller, uri));

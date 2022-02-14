@@ -38,10 +38,6 @@ export function getRunMakeCleanOnExit() : boolean {
     return getBoolConfiguration('build')['runMakeCleanOnExit'];    
 }
 
-export function getMakefileTarget() : string {
-    return "";
-}
-
 export function getExecutableFileName() : string {
     return "a.out"
 }
@@ -78,12 +74,9 @@ export const execShellCommand =
     
     const exec = require('child_process').exec;
     
-    console.log(timeout);
-    if (timeout) {
-        console.log("HERE");
+    if (timeout) {       
         cmd = "timeout --preserve-status " + timeout + " " + cmd;
-    }
-    console.log(cmd);
+    }    
 
     return new Promise((resolve, reject) => {
         exec(cmd, 

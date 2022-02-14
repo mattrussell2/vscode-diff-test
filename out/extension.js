@@ -4,6 +4,7 @@ exports.activate = void 0;
 const vscode = require("vscode");
 const testTree_1 = require("./testTree");
 const driverUtils_1 = require("./driverUtils");
+const parser_1 = require("./parser");
 const process_1 = require("process");
 async function activate(context) {
     const ctrl = vscode.tests.createTestController('TestController', 'Test');
@@ -32,25 +33,16 @@ async function activate(context) {
                 }
             }
         };
-        const runMake = async function () {
-            const makeResult = await driverUtils_1.execShellCommand('make ' + driverUtils_1.getMakefileTarget(), { cwd: driverUtils_1.getCwdUri().fsPath });
-            if (makeResult.passed) {
-                return "passed";
-            }
-            else {
-                return makeResult.stderr;
-            }
-        };
         const runTestQueue = async () => {
-            const makeResult = await runMake();
-            if (makeResult !== "passed") {
+            const made = await driverUtils_1.execShellCommand('make ' + parser_1.buildTarget, { cwd: driverUtils_1.getCwdUri().fsPath });
+            if (!made.passed) {
                 run.appendOutput(`Compilation Failed\r\n`);
                 const data = new testTree_1.TestCase("compilation", {}, 0);
                 const id = `${queue[0].test.uri}/${"data.getLabel()"}`;
                 const tcase = ctrl.createTestItem(id, data.getLabel(), queue[0].test.uri);
                 testTree_1.testData.set(tcase, data);
                 run.started(tcase);
-                let message = new vscode.TestMessage(makeResult);
+                let message = new vscode.TestMessage(made.stderr);
                 message.location = new vscode.Location(queue[0].test.uri, queue[0].test.range);
                 run.failed(queue[0].test, message, 0);
                 run.end();
@@ -118,7 +110,7 @@ function startWatchingWorkspace(controller) {
         return [];
     }
     return vscode.workspace.workspaceFolders.map(workspaceFolder => {
-        const pattern = new vscode.RelativePattern(workspaceFolder, '**/*_tests.h');
+        const pattern = new vscode.RelativePattern(workspaceFolder, '**/*.toml');
         const watcher = vscode.workspace.createFileSystemWatcher(pattern);
         watcher.onDidCreate(uri => getOrCreateFile(controller, uri));
         watcher.onDidChange(uri => {

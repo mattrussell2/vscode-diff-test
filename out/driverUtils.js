@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.execShellCommand = exports.cleanup = exports.getCwdUri = exports.getFileUri = exports.writeLocalFile = exports.getExecutableFileName = exports.getMakefileTarget = exports.getRunMakeCleanOnExit = exports.getValgrindTimeoutTime = exports.getTimeoutTime = exports.getRunWithValgrind = exports.getValgrindFlags = void 0;
+exports.execShellCommand = exports.cleanup = exports.getCwdUri = exports.getFileUri = exports.writeLocalFile = exports.getExecutableFileName = exports.getRunMakeCleanOnExit = exports.getValgrindTimeoutTime = exports.getTimeoutTime = exports.getRunWithValgrind = exports.getValgrindFlags = void 0;
 const vscode = require("vscode");
 const util_1 = require("util");
 const path_1 = require("path");
@@ -43,10 +43,6 @@ function getRunMakeCleanOnExit() {
     return getBoolConfiguration('build')['runMakeCleanOnExit'];
 }
 exports.getRunMakeCleanOnExit = getRunMakeCleanOnExit;
-function getMakefileTarget() {
-    return "";
-}
-exports.getMakefileTarget = getMakefileTarget;
 function getExecutableFileName() {
     return "a.out";
 }
@@ -78,12 +74,9 @@ const cleanup = async function () {
 exports.cleanup = cleanup;
 const execShellCommand = async function (cmd, fsPathDict = {}, timeout) {
     const exec = require('child_process').exec;
-    console.log(timeout);
     if (timeout) {
-        console.log("HERE");
         cmd = "timeout --preserve-status " + timeout + " " + cmd;
     }
-    console.log(cmd);
     return new Promise((resolve, reject) => {
         exec(cmd, fsPathDict, (error, stdout, stderr) => {
             let result = { 'passed': false, 'stdout': "", 'stderr': "", 'exitcode': "" };

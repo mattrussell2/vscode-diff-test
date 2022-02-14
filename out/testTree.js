@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TestCase = exports.TestHeading = exports.TestFile = exports.getContentFromFilesystem = exports.testData = void 0;
 const vscode = require("vscode");
 const util_1 = require("util");
-const parser_1 = require("./parser");
+const parser_1 = require("./parser"); //, stdinDir 
 const path_1 = require("path");
 const driverUtils_1 = require("./driverUtils");
 const fs_1 = require("fs");
@@ -75,12 +75,21 @@ class TestHeading {
 }
 exports.TestHeading = TestHeading;
 class TestCase {
-    constructor(name, testDict, generation, passed) {
+    constructor(name, testDict, generation, passed, argv, stdin_file, output_files) {
+        var _a, _b, _c;
         this.name = name;
         this.testDict = testDict;
         this.generation = generation;
         this.passed = passed;
+        this.argv = argv;
+        this.stdin_file = stdin_file;
+        this.output_files = output_files;
         this.passed = false;
+        this.argv = (_a = testDict["argv"]) !== null && _a !== void 0 ? _a : [];
+        this.stdin_file = (_b = testDict["stdin_file"]) !== null && _b !== void 0 ? _b : "";
+        this.output_files = (_c = testDict["created_files"]) !== null && _c !== void 0 ? _c : [];
+        //this.run_valgrind = testDict["run_valgrind"] ?? true;
+        //this.diff_stderr  = testDict["diff_stderr"]  ?? "";
     }
     getLabel() {
         return `${this.name}`;
@@ -103,32 +112,73 @@ class TestCase {
         }
         this.setFail(new vscode.TestMessage(failMessage), item, options, duration);
     }
+    getOutputFiles() {
+        var _a;
+        var outfiles = [];
+        for (let output_file of (_a = this.output_files) !== null && _a !== void 0 ? _a : []) {
+            const outfpath = path_1.join(driverUtils_1.getCwdUri().fsPath, output_file);
+            if (!fs_1.existsSync(outfpath)) {
+                outfiles.push("");
+            }
+            else {
+                outfiles.push(fs_1.readFileSync(outfpath).toString('utf-8'));
+                fs_1.unlinkSync(outfpath);
+            }
+        }
+        console.log(outfiles);
+        return outfiles;
+    }
     async run(item, options) {
+        var _a, _b;
         if (!vscode.workspace.workspaceFolders) {
             vscode.window.showInformationMessage('No folder or workspace opened');
             return;
         }
         const timeouttime = driverUtils_1.getTimeoutTime().toString();
         const valgrindtime = driverUtils_1.getValgrindTimeoutTime().toString();
-        const execPath = path_1.join(driverUtils_1.getCwdUri().fsPath, driverUtils_1.getExecutableFileName());
+        const execPath = path_1.join(driverUtils_1.getCwdUri().fsPath, parser_1.executableFileName);
+        const refPath = path_1.join(driverUtils_1.getCwdUri().fsPath, parser_1.referenceExecutable);
+        const stdinPath = path_1.join(driverUtils_1.getCwdUri().fsPath); //, stdinDir);        
+        const stdinFile = (_a = this.stdin_file) !== null && _a !== void 0 ? _a : "";
+        console.log(execPath);
         const start = Date.now();
-        const result = await driverUtils_1.execShellCommand(execPath + ' ' + this.name, {}, timeouttime);
+        // ADD INPUT ARGS TO EXEC        
+        var appendArgs = " ";
+        for (let arg of (_b = this.argv) !== null && _b !== void 0 ? _b : []) {
+            appendArgs += path_1.join(driverUtils_1.getCwdUri().fsPath, arg) + " ";
+        }
+        appendArgs += " < " + path_1.join(stdinPath, stdinFile);
+        const result = await driverUtils_1.execShellCommand(execPath + appendArgs, {}, timeouttime);
+        const studOutfiles = this.getOutputFiles();
+        // ordering is important - get student output files before reference overwrites them.
+        const refResult = await driverUtils_1.execShellCommand(refPath + appendArgs, {}, timeouttime);
+        const refOutfiles = this.getOutputFiles();
         let duration = Date.now() - start;
         if (result.passed) {
             this.passed = true;
-            // run the diff test, if a file to diff exists
-            const diffFilePath = path_1.join(driverUtils_1.getCwdUri().fsPath, 'stdout/' + this.name);
-            if (fs_1.existsSync(diffFilePath)) {
-                const diffFile = fs_1.readFileSync(diffFilePath).toString('utf-8');
-                if (diffFile !== result.stdout) {
-                    this.setFail(vscode.TestMessage.diff("diff failed!\n------------\n", result.stdout, diffFile), item, options, duration);
-                    this.passed = false;
+            if (result.stdout !== refResult.stdout) {
+                this.setFail(vscode.TestMessage.diff("stdout diff failed\n", refResult.stdout, result.stdout), item, options, duration);
+                this.passed = false;
+            }
+            else if (result.stderr !== refResult.stderr) {
+                this.setFail(vscode.TestMessage.diff("stderr diff failed\n", refResult.stderr, result.stderr), item, options, duration);
+                this.passed = false;
+            }
+            else if (this.output_files) {
+                console.log(this.output_files);
+                for (let i = 0; i < this.output_files.length; i++) {
+                    if (studOutfiles[i] !== refOutfiles[i]) {
+                        this.setFail(vscode.TestMessage.diff("output file mismatch: " +
+                            this.output_files[i] + '\n', refOutfiles[i], studOutfiles[i]), item, options, duration);
+                        this.passed = false;
+                    }
                 }
             }
             // run the valgrind test, if user has set the option (is set to true by default)
-            if (driverUtils_1.getRunWithValgrind()) {
-                const valgrindResult = await driverUtils_1.execShellCommand('valgrind ' + driverUtils_1.getValgrindFlags() + ' --error-exitcode=1' +
-                    ' ' + execPath + ' ' + this.name, {}, valgrindtime);
+            else if (driverUtils_1.getRunWithValgrind()) {
+                const valgrindResult = await driverUtils_1.execShellCommand('valgrind ' + driverUtils_1.getValgrindFlags() +
+                    ' --error-exitcode=1' + ' ' +
+                    execPath + appendArgs, {}, valgrindtime);
                 duration = Date.now() - start;
                 if (!valgrindResult.passed) {
                     this.reportFail(valgrindResult, valgrindtime, item, options, duration);

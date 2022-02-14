@@ -2,8 +2,14 @@ import * as vscode from 'vscode';
 import * as toml from 'toml';
 
 const testLineRe = /^\s*\[tests\..*\]\s*/;
-const configArgs = ["exec", "ref_exec", "build_target", "stdin_dir"];
-const testArgs   = ["input_args", "stdin_file", "output_files", "run_valgrind", "diff_stderr"];
+const configArgs = ["exec", "ref_exec", "build_target"]; //, "stdin_dir"];
+const testArgs   = ["argv", "stdin_file", "created_files"]; //, "run_valgrind", "diff_stderr"];
+
+export var executableFileName  = "";
+export var referenceExecutable = "";
+export var buildTarget         = "";
+//export var stdinDir            = "";
+
 export const parseTestsFile = (text: string, events: {
     onTest(range: vscode.Range, name: string, testDict: Object): void;
 }) => {
@@ -19,6 +25,11 @@ export const parseTestsFile = (text: string, events: {
             vscode.window.showErrorMessage("Error: missing [config] variable: " + arg);
         }
     }
+
+    executableFileName  = data["config"]["exec"];
+    referenceExecutable = data["config"]["ref_exec"];
+    buildTarget         = data["config"]["build_target"];
+   //stdinDir            = data["config"]["stdin_dir"];        
 
     for (let arg of Object.keys(data["config"])) {
         if (!configArgs.includes(arg)) {

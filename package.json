@@ -3,7 +3,7 @@
     "displayName": "Unit Testing Framework",
     "description": "Unit Testing Framework",
     "enableApiProposals": false,
-    "version": "0.1.0",
+    "version": "0.1.1",
     "publisher": "AutumnMoon",
     "icon": "images/icon.png",
     "engines": {
@@ -80,6 +80,7 @@
         "vscode-dts": "^0.3.1"
     },
     "dependencies": {
-        "toml": "^3.0.0"
+        "toml": "^3.0.0",
+        "vsce": "^2.6.7"
     }
 }
