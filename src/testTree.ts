@@ -84,11 +84,22 @@ export class TestHeading {
 export class TestCase {
     constructor(
         private readonly name: String,  
-        private testDict: Object,     
+        private testDict: any,     
         public generation: number,
-        private passed?: boolean
+        private passed?: boolean, 
+        private input_args?: String[],
+        private stdin_file?: String,
+        private output_files?: String[],
+        private run_valgrind?: boolean,
+        private diff_stderr?: boolean,
     ) {
-         this.passed = false; 
+        this.passed       = false; 
+        
+        this.input_args   = testDict["input_args"]   ?? [];
+        this.stdin_file   = testDict["stdin_file"]   ?? "";
+        this.output_files = testDict["output_files"] ?? [];
+        this.run_valgrind = testDict["run_valgrind"] ?? true;
+        this.diff_stderr  = testDict["diff_stderr"]  ?? "";
     }
 
     getLabel() {

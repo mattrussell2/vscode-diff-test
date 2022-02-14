@@ -37,14 +37,7 @@ export const parseTestsFile = (text: string, events: {
             } 
         } 
     }
-//     input_args   = ["infiles/file1", "somearg"] # ./MetroSim infiles/file1 somearg     (default=[])
-// stdin_file   = "test1"              # MetroSim ... < test1        (default=None)
-// output_files = ["somearg"]          # 'somearg' is written to by the program.
-// run_valgrind = "True"               # [optional] run valgrind?    (default=True)
-// diff_stderr  = "False"              # [optional] diff stderr with the reference?
-
-
-
+    
     // parse the lines of the file and add the test indicators.
     const lines = text.split('\n');
     for (let lineNo = 0; lineNo < lines.length; lineNo++) {
