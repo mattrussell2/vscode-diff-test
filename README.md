@@ -31,9 +31,9 @@ In order to run tests, you need a `.toml` file with two main sections: `[config]
 The `[config]` section must contain the following required arguments: 
 ```
 [config]
-exec = "a.out"         # path of the executable file to run
-ref_exec = "ref_a.out" # path of referece executable
-build_target = "build" # command to 'make' -> here, `make build` will be run
+exec         = "a.out"     # path of the executable file to run
+ref_exec     = "ref_a.out" # path of referece executable
+build_target = "build"     # command to 'make' -> here, `make build` will be run
 ```
 ## [tests]
 The `[tests]` section must contain one sub-section per test as follows: 
