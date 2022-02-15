@@ -20,7 +20,7 @@ Note! The extension requires a `.toml` file in your workspace in order to activa
 ![image](./images/left-hand-side.png)
 
 # testing .toml file
-In order to run tests, you need a `.toml` file (see here for details)[https://github.com/toml-lang/toml] with two main sections: `[config]`, and `[tests]`.
+In order to run tests, you need a `.toml` file [see here for details](https://github.com/toml-lang/toml) with two main sections: `[config]`, and `[tests]`.
 
 ## [config]
 The `[config]` section must contain the following required arguments: 
