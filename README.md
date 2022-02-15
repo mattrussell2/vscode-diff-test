@@ -1,12 +1,7 @@
 # vscode-diff-test
 A simple and sweet VSCode extension run diff tests.
 
-# Setup
-To use the extension, you'll need to create a testing .toml file.
-
-NOTE: Please follow these instructions carefully!
-
-### Getting started
+# Getting started
 If you haven't already, [install the Unit Testing Framework by AutumnMoon from the VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=AutumnMoon.diff-test). 
 
 You can find the starter code in the source repo: 
@@ -25,7 +20,7 @@ Note! The extension requires a `.toml` file in your workspace in order to activa
 ![image](./images/left-hand-side.png)
 
 # testing .toml file
-In order to run tests, you need a `.toml` file with two main sections: `[config]`, and `[tests]`.
+In order to run tests, you need a `.toml` [https://github.com/toml-lang/toml](see here for details) file with two main sections: `[config]`, and `[tests]`.
 
 ## [config]
 The `[config]` section must contain the following required arguments: 
