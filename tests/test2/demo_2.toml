@@ -1,0 +1,11 @@
+# example diff test config file
+# matt russell
+
+[config]
+exec           = "run2"             
+ref_exec       = "ref2"
+build_target   = "demo2"                 
+
+# ./run tests/t_infiles/file1 tests/t_outfiles/myoutputfile < tests/t_stdin/test1
+[tests.test2]
+argv          = ["../args/infiles/file1"] 
