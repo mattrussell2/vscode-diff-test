@@ -4,9 +4,8 @@ args/ contains various files sent to the demo programs
 
 each other folder contains a test file.
 
-test 0 - simple output to stdout
-
-test 1 - input from stdin, and output to stdout
+* test 0 - simple output to stdout
+* test 1 - input from stdin, and output to stdout
 
 test 2 - input filename passed via argv, data sent to stdout 
 
