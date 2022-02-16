@@ -1,8 +1,0 @@
-[config]
-exec         = "run1"             
-ref_exec     = "ref1"
-build_target = "demo1"                 
-                
-
-[tests.test1]
-stdin_file = "../args/stdin/test1.stdin"

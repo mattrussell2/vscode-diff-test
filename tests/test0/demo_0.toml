@@ -1,6 +1,0 @@
-[config]
-exec         = "run0"             
-ref_exec     = "ref0"
-build_target = "demo0"                 
-               
-[tests.test0]
