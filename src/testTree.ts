@@ -190,14 +190,14 @@ export class TestCase {
                 this.passed = false;            
             }
 
-            else if (result.stderr !== refResult.stderr) {                
+            if (this.passed && result.stderr !== refResult.stderr) {                
                 this.setFail(vscode.TestMessage.diff("stderr diff failed\n", 
                                                      refResult.stderr, result.stderr),
                              item, options, duration);
                 this.passed = false;            
             }
             
-            else if (this.output_files) {
+            if (this.passed && this.output_files) {
                 console.log(this.output_files);
                 for (let i = 0; i < this.output_files.length; i++) {
                     if (studOutfiles[i] !== refOutfiles[i]) {
@@ -209,16 +209,20 @@ export class TestCase {
                     }                    
                 }
             }
-            
 
             // run the valgrind test, if user has set the option (is set to true by default)
-            else if (getRunWithValgrind()) {                                
+            if (this.passed && getRunWithValgrind()) {    
+                // const valgexecstr = 'valgrind ' + getValgrindFlags() +
+                //                                               ' --error-exitcode=1' + ' ' +
+                //                                                execPath + appendArgs;
+                // console.log(valgexecstr);                            
                 const valgrindResult = await execShellCommand('valgrind ' + getValgrindFlags() +
                                                               ' --error-exitcode=1' + ' ' +
                                                                execPath + appendArgs, 
                                                                {},
                                                                valgrindtime);                                
-                duration = Date.now() - start;
+                //console.log(valgrindResult);
+                                                               duration = Date.now() - start;
                 if (!valgrindResult.passed) {                                                 
                     this.reportFail(valgrindResult, valgrindtime, item, options, duration); 
                     this.passed = false;

@@ -160,11 +160,11 @@ class TestCase {
                 this.setFail(vscode.TestMessage.diff("stdout diff failed\n", refResult.stdout, result.stdout), item, options, duration);
                 this.passed = false;
             }
-            else if (result.stderr !== refResult.stderr) {
+            if (this.passed && result.stderr !== refResult.stderr) {
                 this.setFail(vscode.TestMessage.diff("stderr diff failed\n", refResult.stderr, result.stderr), item, options, duration);
                 this.passed = false;
             }
-            else if (this.output_files) {
+            if (this.passed && this.output_files) {
                 console.log(this.output_files);
                 for (let i = 0; i < this.output_files.length; i++) {
                     if (studOutfiles[i] !== refOutfiles[i]) {
@@ -175,10 +175,15 @@ class TestCase {
                 }
             }
             // run the valgrind test, if user has set the option (is set to true by default)
-            else if (driverUtils_1.getRunWithValgrind()) {
+            if (this.passed && driverUtils_1.getRunWithValgrind()) {
+                // const valgexecstr = 'valgrind ' + getValgrindFlags() +
+                //                                               ' --error-exitcode=1' + ' ' +
+                //                                                execPath + appendArgs;
+                // console.log(valgexecstr);                            
                 const valgrindResult = await driverUtils_1.execShellCommand('valgrind ' + driverUtils_1.getValgrindFlags() +
                     ' --error-exitcode=1' + ' ' +
                     execPath + appendArgs, {}, valgrindtime);
+                //console.log(valgrindResult);
                 duration = Date.now() - start;
                 if (!valgrindResult.passed) {
                     this.reportFail(valgrindResult, valgrindtime, item, options, duration);

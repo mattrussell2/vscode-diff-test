@@ -2,9 +2,9 @@
 # matt russell
 
 [config]
-exec           = "run"             
-ref_exec       = "reference"
-build_target   = "build"                 
+exec         = "run"             
+ref_exec     = "reference"
+build_target = "build"                 
 
 # command executed:  ./run 
 [tests.test0]
