@@ -1,9 +1,9 @@
 {
     "name": "diff-test",
-    "displayName": "Unit Testing Framework",
-    "description": "Unit Testing Framework",
+    "displayName": "Diff Unit Testing Framework",
+    "description": "Diff Unit Testing Framework",
     "enableApiProposals": false,
-    "version": "0.1.4",
+    "version": "0.1.5",
     "publisher": "AutumnMoon",
     "icon": "images/icon.png",
     "engines": {
@@ -17,7 +17,7 @@
     ],
     "contributes": {
         "configuration": {
-            "title": "Unit Testing Framework",
+            "title": "Diff Unit Testing Framework",
             "properties": {
                 "diff-test.build.runMakeCleanOnExit": {
                     "type": "boolean",
