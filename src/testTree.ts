@@ -212,17 +212,13 @@ export class TestCase {
 
             // run the valgrind test, if user has set the option (is set to true by default)
             if (this.passed && getRunWithValgrind()) {    
-                // const valgexecstr = 'valgrind ' + getValgrindFlags() +
-                //                                               ' --error-exitcode=1' + ' ' +
-                //                                                execPath + appendArgs;
-                // console.log(valgexecstr);                            
+                                           
                 const valgrindResult = await execShellCommand('valgrind ' + getValgrindFlags() +
                                                               ' --error-exitcode=1' + ' ' +
                                                                execPath + appendArgs, 
                                                                {},
                                                                valgrindtime);                                
-                //console.log(valgrindResult);
-                                                               duration = Date.now() - start;
+                duration = Date.now() - start;
                 if (!valgrindResult.passed) {                                                 
                     this.reportFail(valgrindResult, valgrindtime, item, options, duration); 
                     this.passed = false;
