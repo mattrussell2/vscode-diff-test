@@ -13,7 +13,7 @@ cd vscode-diff-test/sample
 
 Wonderful! Now, open this folder in a new workspace:
 
-```ctrl-shift-p Developer: Reload Window [or, code .]```
+```code .```
 
 Note! The extension requires a `.toml` file in your workspace in order to activate. If so, you should see the testing image on the left-hand panel. Otherwise, make sure to have a `.toml` file in your directory, and reload the workspace.
 
