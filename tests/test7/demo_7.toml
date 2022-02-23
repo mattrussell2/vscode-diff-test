@@ -1,0 +1,11 @@
+# example diff test testing file
+# test output to stderr
+# matt russell
+
+[config]
+exec           = "run7"             
+ref_exec       = "ref7"
+build_target   = "demo7"                 
+
+# command executed:  ./run 
+[tests.test0]
