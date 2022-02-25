@@ -3,7 +3,7 @@ import * as toml from 'toml';
 
 const testLineRe = /^\s*\[tests\..*\]\s*/;
 const configArgs = ["exec", "ref_exec", "build_target"]; //, "stdin_dir"];
-const testArgs   = ["argv", "stdin_file", "created_files"]; //, "run_valgrind", "diff_stderr"];
+const testArgs   = ["argv", "stdin_file", "stdin_text", "created_files"]; //, "run_valgrind", "diff_stderr"];
 
 export var executableFileName  = "";
 export var referenceExecutable = "";
@@ -47,6 +47,11 @@ export const parseTestsFile = (text: string, events: {
                 vscode.window.showWarningMessage("Warning: unknown variable in [tests." + test + "]: " + arg);
             } 
         } 
+    }
+
+    if (Object.keys(data["tests"]).includes("stdin_text") && 
+        Object.keys(data["tests"]).includes("stdin_file")) {
+            vscode.window.showErrorMessage("Each test can only contain one of stdin_text or stdin_file.")
     }
     
     // parse the lines of the file and add the test indicators.

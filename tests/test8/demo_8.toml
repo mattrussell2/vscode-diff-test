@@ -1,0 +1,12 @@
+# example diff test testing file
+# test output to stderr
+# matt russell
+
+[config]
+exec           = "run8"             
+ref_exec       = "ref8"
+build_target   = "demo8"                 
+
+[tests.test0]
+stdin_text = "hello!" 
+stdin_file = "something

@@ -1,0 +1,497 @@
+#!/usr/sup/bin/python3.9
+"""
+#!/usr/sup/bin/python
+    diff_test
+
+    This script runs the diff testing framework for comp15 
+
+    Tests are the names of files in stdin/
+    
+    Each file will be sent to the stdin of a driver file; output will be diff'd
+    against file with the same name as the one in stdin/
+    
+    If a file is diff'd, then the test will only pass if:
+        it completes execution and
+        the diff is empty
+
+"""
+import sys
+import os
+import re
+import json
+import subprocess
+import argparse
+from pathlib import Path
+import toml 
+
+################################################################################
+#                   error message throwers for parsing toml                    #                              
+################################################################################
+def toml_section_error(s):
+    print("[%s] needs to be a section in the toml file. " +
+          "See the example for details." % s)
+    exit(1)
+
+def toml_error(param, section):
+    print("%s needs to be a parameter in the %s section of the toml file. " +
+          "See the example for details." % (param, section))
+    exit(1)
+
+def toml_incorrect_param(p, v, a):
+    print("parameter %s is incorrect for variable %s in the .toml file " + 
+          "acceptable values are: %s" % (p, v, a))
+    exit(1)
+
+def toml_incorrect_path(p):
+     print("%s is not in the current working directory. Please try again" % p)
+
+################################################################################
+#                                parse args                                    #                              
+################################################################################
+ap = argparse.ArgumentParser()
+ap.add_argument('-t', '--toml-file', metavar=("toml_filename"), required=True, help="toml test file name")
+ap.add_argument('-n', '--test-names', metavar=("testa", "testb"), required=False, nargs='+', help="list of one or more specific test(s) to run")
+args = vars(ap.parse_args())
+
+if args['toml_file'] not in os.listdir('.'):
+    toml_incorrect_path(args['toml_file'])
+
+toml_data = toml.load(args['toml_file'])
+
+################################################################################
+#                        test reqired args in toml file                        #
+################################################################################
+
+# check for required section 'test_config'
+if 'config' not in toml_data:
+    toml_section_error('config')
+
+# check for required section 'tests'
+if 'tests' not in toml_data:
+    toml_section_error('tests.testnameX')
+
+# check for required variables in the test_config section
+config = toml_data['config']
+for v in ['exec', 'ref_exec', 'build_target']:
+    if v not in config:
+        toml_error(v, 'config')
+
+# extract required variables from the 'test_config' section
+EXEC         = config['exec']
+REF_EXEC     = config['ref_exec']
+BUILD_TARGET = config['build_target']
+
+# extract test names from the 'tests' section
+TEST_NAMES   = [x for x in toml_data['tests']]
+
+################################################################################
+#                       test optional args in toml file                        #
+################################################################################
+# set defaults for optional args
+TIMEOUT     = '30'
+PRETTY_DIFF = True
+CLEANUP     = True
+
+DIFFCMD = ["diff"]
+if PRETTY_DIFF: DIFFCMD.extend(['-u'])
+
+################################################################################
+#                              setup globals                                   #
+################################################################################
+
+# colors for printing to terminal
+FAILURE      = "31"                 
+SUCCESS      = "32"
+INFO         = "34"
+OSTREAM      = "35"
+OUTPUT       = "37"
+
+TMPFILE      = "tmp"
+open(TMPFILE, 'w').close()  # create the file on disk.
+
+TMP_STUD_STDOUT = "student_stdout"
+TMP_STUD_STDERR = "student_stderr"
+
+TMP_REFR_STDOUT = "reference_stdout"
+TMP_REFR_STDERR = "reference_stderr"
+
+TMP_DIFF_STDOUT = "temp_diff_stdout"
+TMP_DIFF_STDERR = "temp_diff_stderr"
+
+
+def INFORM(s, color=OUTPUT):
+    """
+    prints a string to stderr with the specified output color
+
+        Parameters:
+            s (string)   : the string to print
+            color (int)  : the color code to print
+
+        Returns:
+            none
+
+        Notes:
+            \033[1;INTm sets the current terminal text color to be the code INT
+            \033[0m returns the terminal text color to black
+
+        Effects:
+            color stream is printed, and terminal char color returns to black.
+    """
+    sys.stderr.write("\033[1;" + color + "m" + s + "\033[0m\n")
+
+
+def RUN(cmd_ary, stdin=None):
+    """
+        Runs the subprocess module on the given command and returns the result.
+
+        Parameters:
+            cmd_ary (list) : list of command and options to run
+            stdin (string) : file to send to stdin, or None
+
+        Returns:
+            (completedProcess) : the result of the completed subprocess module
+
+        Notes:
+            if no stdin argument, use temporary file as fake stdin.
+            Always capture output and use universal newlines.
+            Always add a timeout argument of length specified in config.ini
+    """
+    cmd_ary = ["timeout", TIMEOUT] + cmd_ary    
+    return subprocess.run(cmd_ary, stdin=stdin, capture_output=True,
+                                                universal_newlines=True)
+
+def cleanup():
+    toRemove = [TMPFILE, TMP_STUD_STDOUT, TMP_STUD_STDERR, TMP_REFR_STDOUT, 
+                TMP_REFR_STDERR, TMP_DIFF_STDOUT, TMP_DIFF_STDERR]
+    for f in os.listdir('.'):
+        if 'core.' in f:
+            toRemove.append(f)
+    for f in toRemove:
+        if f in os.listdir('./'):
+            os.remove(f)
+
+    if CLEANUP:
+        subprocess.run(["make","clean"])
+
+def report_results(tests):         
+    passed_tests = [name for name, test in tests.items() if test.passed()]    
+    failed_tests = [name for name, test in tests.items() if name not in passed_tests]    
+
+    num_passed = str(len(passed_tests))    
+    num_failed = str(len(failed_tests))
+    
+    valgrind_passed_tests = [name for name, test in tests.items() if test.run_valgrind and test.valgrind_test_passed()]
+    valgrind_failed_tests = [name for name, test in tests.items() if test.run_valgrind and not test.valgrind_test_passed()]
+    
+    num_valgrind_passed = str(len(valgrind_passed_tests))
+    num_valgrind_failed = str(len(valgrind_failed_tests))
+
+    valgrind_not_run     = [name for name, test in tests.items() if name in failed_tests or not test.run_valgrind]
+    num_valgrind_not_run = str(len(valgrind_not_run))
+    
+    INTERNAL_HEADER_START = '\t'
+    INTERNAL_BLOCK_SEP    = '\n\t\t'
+    DOUBLE_BLOCK_SEP      = INTERNAL_BLOCK_SEP + '\t'
+
+    pstr = ""
+ 
+    pstr += "\n== test output for passing tests ==\n"
+    
+    for test in passed_tests:
+        if tests[test].standard_test.stdout:
+            pstr += test + ' - stdout\n' + '-' * len(test + ' - stdout') + '\n'
+            pstr += tests[test].standard_test.stdout + '\n'
+        if tests[test].standard_test.stderr:
+            pstr += test + ' - stderr\n' + '-' * len(test + ' - stderr') + '\n'
+            pstr += tests[test].standard_test.stderr + '\n'
+    
+    if not passed_tests:
+        pstr += "(none)\n"     
+    
+    pstr += "\n== test output for failing tests ==\n"
+    
+    for test in failed_tests:
+        if tests[test].standard_test.stdout and 'utf-8' not in \
+           tests[test].standard_test.stdout:
+            pstr += test + ' - stdout\n' + '-' * len(test + ' - stdout') + '\n'
+            pstr += tests[test].standard_test.stdout + '\n'
+        if tests[test].standard_test.stderr and 'utf-8' not in \
+           tests[test].standard_test.stderr:
+            pstr += test + ' - stderr\n' + '-' * len(test + ' - stderr') + '\n'
+            pstr += tests[test].standard_test.stderr + '\n'
+
+        if tests[test].pretty_diff_stdout_test:
+            pstr += test + ' - diff stdout test result\n'
+            pstr += tests[test].pretty_diff_stdout_test.stdout + '\n'
+            pstr += tests[test].pretty_diff_stdout_test.stderr + '\n'
+        else:
+            if tests[test].diff_stdout_test:
+                pstr += test + ' - diff stdout test result\n'
+                pstr += tests[test].diff_test.stdout + '\n'
+                pstr += tests[test].diff_test.stderr + '\n'
+
+        if tests[test].diff_stderr:            
+            if tests[test].pretty_diff_stderr_test:
+                pstr += test + ' - diff stderr test result\n'
+                pstr += tests[test].pretty_diff_stderr_test.stdout + '\n'
+                pstr += tests[test].pretty_diff_stderr_test.stderr + '\n'
+            else:
+                if tests[test].diff_stdout_test:
+                    pstr += test + ' - diff stderr test result\n'
+                    pstr += tests[test].diff_stderr_test.stdout + '\n'
+                    pstr += tests[test].diff_stderr_test.stderr + '\n'
+
+        if tests[test].standard_test.returncode == 11:
+            pstr += test + " caused a segmentation fault\n"    
+        if 'utf-8' in tests[test].standard_test.stderr or 'utf-8' in \
+                      tests[test].standard_test.stdout:
+            pstr += test + " has run undefined behavior in your code,\n" + \
+                    "which caused your program to crash. This is likely\n" + \
+                    "due to uninitialized variable access.\n"
+        
+        if not tests[test].diff_files_passed():
+            for i in range(len(tests[test].file_out_diffs)):
+                if tests[test].file_out_diffs[i].returncode != 0:
+                   pstr += test + ' - file diff result\n'
+                   pstr += tests[test].file_out_pretty_diffs[i].stdout + '\n'
+                   pstr += tests[test].file_out_pretty_diffs[i].stderr + '\n'
+                
+    if not failed_tests:
+        pstr += "(none)\n" 
+    
+    pstr += "\n== valgrind output for failing tests ==\n"    
+    
+    for test in valgrind_failed_tests:
+        if tests[test].valgrind_test.stderr:
+            pstr += test + ' - valgrind stderr\n' + '-' * len(test + ' - valgrind stderr') + '\n'
+            pstr += tests[test].valgrind_test.stderr + '\n'
+    
+    if not valgrind_failed_tests:
+        pstr += "(none)\n\n" 
+    
+    
+    pstr += "== test summary ==\n"
+    pstr += "number of tests passed: " + num_passed + '\n'
+    pstr += "number of tests failed: " + num_failed + '\n'
+    pstr += "number of valgrind tests passed: " + num_valgrind_passed + '\n'
+    pstr += "number of valgrind tests failed: " + num_valgrind_failed + '\n'
+    
+    pstr += "\n== test results ==\n"
+    if passed_tests:
+        pstr += "passing tests - " + repr(passed_tests) + '\n'
+    else: 
+        pstr += "passing tests - (none)\n"
+        
+    if failed_tests:
+        pstr += "failing tests - " + repr(failed_tests) + '\n'
+    else: 
+        pstr += "failing tests - (none)\n"
+    
+    pstr += "\n== valgrind results ==\n"
+    if valgrind_passed_tests:
+        pstr += "passing valgrind tests - " + repr(valgrind_passed_tests) + '\n'
+    else:
+        pstr += "passing valgrind tests - (none)\n"
+
+    if valgrind_failed_tests:
+        pstr += "failing valgrind tests - " + repr(valgrind_failed_tests) + '\n'
+    else:
+        pstr += "failing valgrind tests - (none)\n"
+              
+    print(pstr)
+
+class Test:
+    def __init__(self, testname):
+        self.name         = testname
+        self.input_args   = []
+        self.stdin_file   = TMPFILE
+        self.run_valg_opt = True
+        self.diff_stderr  = True
+        self.output_files = []
+
+        tomlobj = toml_data['tests'][testname]
+
+        if 'argv' in tomlobj:
+            self.input_args = tomlobj['argv']       
+
+        if 'stdin_file' in tomlobj and 'stdin_text' in tomlobj:
+            print("only one of stdin_file or stdin_text can be used for a given test")
+            exit(1)
+
+        if 'stdin_file' in tomlobj:
+            self.stdin_file = os.path.join('./', tomlobj['stdin_file'])
+        if 'stdin_text' in tomlobj: 
+            with open(self.stdin_file, 'w') as f:
+                f.write(tomlobj["stdin_text"])
+
+                
+        if 'run_valgrind' in tomlobj:
+            if tomlobj['run_valgrind'] not in ['True', 'False']:
+                toml_incorrect_param(tomlobj['run_valgrind'], 
+                                     'tests.%s.run_valgrind' % testname, 
+                                     "True/False")
+            else:
+                self.run_valg_opt = tomlobj['run_valgrind'] == "True"
+
+        if 'diff_stderr' in tomlobj:                        
+            if tomlobj['diff_stderr'] not in ['True', 'False']:
+                toml_incorrect_param(tomlobj['diff_stderr'], 
+                                     'tests.%s.diff_stderr' % testname, 
+                                     "True/False")
+            else:
+                self.diff_stderr = tomlobj['diff_stderr'] == "True"
+            
+        if 'created_files' in tomlobj:
+            self.output_files = tomlobj['created_files']
+
+
+    def run_code(self, EXECUTABLE, STDOUTPATH, STDERRPATH):
+        exec_list = [os.path.join("./", EXECUTABLE)] + self.input_args
+        
+        with open(self.stdin_file, "r") as stdin:
+            result = RUN(exec_list, stdin=stdin)        
+        
+        Path(STDOUTPATH).write_text(result.stdout)
+        Path(STDERRPATH).write_text(result.stderr)
+        
+        outfiledata = []
+        for out_file in self.output_files:            
+            with open(out_file, 'r') as f:
+                outfiledata.append(f.read())
+            os.remove(out_file)
+        
+        return (result, outfiledata)
+
+    def run_reference(self):
+        self.ref_result, self.ref_outfiles = \
+            self.run_code(REF_EXEC, TMP_REFR_STDOUT, TMP_REFR_STDERR)
+     
+    def run_test(self):
+        self.standard_test, self.student_outfiles = \
+            self.run_code(EXEC, TMP_STUD_STDOUT, TMP_STUD_STDERR)
+        self.run_reference()
+
+
+    def run_diff(self, filea, fileb):
+        diff_test = RUN(DIFFCMD + [filea, fileb])
+        Path(TMP_DIFF_STDOUT).write_text(diff_test.stdout)
+        if PRETTY_DIFF:
+            with open(TMP_DIFF_STDOUT, 'r') as f:
+                pretty_diff_test = RUN(['diff-so-fancy'], stdin=f)
+        else:
+            pretty_diff_test = None
+        return (diff_test, pretty_diff_test)
+
+    # runs diffs for - stdout, stderr, and any number of specified output files
+    def run_diffs(self):
+        (self.diff_stdout_test, self.pretty_diff_stdout_test) = \
+            self.run_diff(TMP_STUD_STDOUT, TMP_REFR_STDOUT)
+
+        (self.diff_stderr_test, self.pretty_diff_stderr_test) = \
+            self.run_diff(TMP_STUD_STDERR, TMP_REFR_STDERR)
+                    
+        self.file_out_diffs = []
+        self.file_out_pretty_diffs = []
+        for student, reference in zip(self.student_outfiles, self.ref_outfiles):
+            Path(TMP_STUD_STDOUT).write_text(student)
+            Path(TMP_REFR_STDOUT).write_text(reference)
+            (diff, pretty_diff) = self.run_diff(TMP_STUD_STDOUT, TMP_REFR_STDOUT)
+            self.file_out_diffs.append(diff)
+            self.file_out_pretty_diffs.append(pretty_diff)
+            
+    def run_valgrind(self):
+        valgrind_command = [
+            "valgrind",
+            "--show-leak-kinds=all",
+            "--leak-check=full",  # leaks shown as errors
+            "--error-exitcode=1",  # errors/leaks return 1
+            os.path.join("./", EXEC)
+        ] + self.input_args
+    
+        with open(self.stdin_file, "r") as stdin:
+            self.valgrind_test = RUN(valgrind_command, stdin=stdin)
+    
+    def standard_test_passed(self):        
+        return self.standard_test.returncode == 0 
+    
+    def valgrind_test_passed(self):        
+        return self.valgrind_test.returncode == 0
+            
+    def diff_stdout_test_passed(self):       
+        return self.diff_stdout_test.returncode == 0
+    
+    def diff_stderr_test_passed(self):        
+        return self.diff_stderr_test.returncode == 0
+        
+    def diff_files_passed(self):
+        for f_test in self.file_out_diffs:
+            if f_test.returncode != 0: return False        
+        return True            
+
+    def passed(self):
+        if (self.run_valgrind and not self.valgrind_test_passed()) or \
+           (self.diff_stderr  and not self.diff_stderr_test_passed()): 
+           return False
+        for f_test in self.file_out_diffs:
+            if f_test.returncode != 0: return False
+        return self.standard_test_passed() and self.diff_stdout_test_passed()
+            
+
+def build():
+    """
+    compile the target executable
+
+    Prerequisites:
+        BUILD_TARGET and EXEC set in config.ini
+
+    Parameters:
+        None
+
+    Returns:
+        compilation_result (result of running subprocess module)
+    """
+    INFORM("\n== building executable with: make %s ==" % BUILD_TARGET,
+           color=INFO)
+
+    compilation_result = RUN(["make", BUILD_TARGET])    
+        
+    INFORM(compilation_result.stdout, color=INFO)
+
+    if compilation_result.returncode != 0:
+        INFORM("build failed", color=FAILURE)        
+        INFORM(compilation_result.stderr)        
+        exit(1)
+
+    if EXEC not in os.listdir('./'):
+        INFORM("Executable produced by 'make %s' must be named: %s - " + \
+               "please try again, or see the example .toml file" %       \
+               (BUILD_TARGET, EXEC), color=FAILURE)
+        exit(1)
+    
+    INFORM("build completed compiled successfully\n", color=INFO)
+
+    # for some reason, g++ doesn't always play nice, so chmod the executable
+    chmod_result = RUN(["chmod", "u+x", EXEC])    
+
+if __name__ == '__main__':
+    build()
+
+    
+    if args['test_names']:
+        for test_name in args['test_names']:
+            if test_name not in TEST_NAMES:
+                print("%s is not a valid test name, please try again" % test_name)
+                exit(1)    
+        TEST_NAMES = args['test_names']
+    
+    tests = {}
+    for name in TEST_NAMES:                
+        test = Test(name)
+        test.run_test()
+        test.run_diffs()                
+        test.run_valgrind()
+        
+        tests[name] = test
+
+    report_results(tests)
+    cleanup()

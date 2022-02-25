@@ -91,6 +91,7 @@ export class TestCase {
         private argv?: string[],
         private stdin_file?: string,
         private output_files?: string[],
+        private stdin_text?: boolean
         //private run_valgrind?: boolean,
         //private diff_stderr?: boolean,
     ) {
@@ -98,6 +99,12 @@ export class TestCase {
         
         this.argv         = testDict["argv"]         ?? [];
         this.stdin_file   = testDict["stdin_file"]   ?? "";
+        this.stdin_text   = false;
+        if (Object.keys(testDict).includes("stdin_text")) {
+            writeLocalFile(testDict["stdin_text"], "tmp");
+            this.stdin_file = "tmp";
+            this.stdin_text = true;
+        }
         this.output_files = testDict["created_files"] ?? [];
         //this.run_valgrind = testDict["run_valgrind"] ?? true;
         //this.diff_stderr  = testDict["diff_stderr"]  ?? "";
@@ -231,6 +238,9 @@ export class TestCase {
         // possible that the 'main' test passed, but the valgrind/diff tests didn't.
         if (this.passed) {
             options.passed(item, duration);          
+        }
+        if (this.stdin_text) {
+            unlinkSync(join(getCwdUri().fsPath,"tmp"));
         }
     }
 }

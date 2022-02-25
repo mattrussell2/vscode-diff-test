@@ -47,6 +47,9 @@ created_files = ["my_outfile",...]  # a list of files created by your program.
 For the above test and configuration, the command-line code is equivalent: 
 ```./a.out arg1 arg2 < my_stdin_file ```
 
+Note: You may optionally use `stdin_text = "somestring"`, where the string provided 
+will be sent to stdin, instead of a file. 
+
 ## Execution of a test
 Press the play button to run a test. On running a test, the proper argv and stdin_file will be run with both your program, and the reference program. 
 
