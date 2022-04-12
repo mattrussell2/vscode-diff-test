@@ -3,7 +3,7 @@ import * as toml from 'toml';
 
 const testLineRe = /^\s*\[tests\..*\]\s*/;
 const configArgs = ["exec", "ref_exec", "build_target"]; //, "stdin_dir"];
-const testArgs   = ["argv", "stdin_file", "stdin_text", "created_files"]; //, "run_valgrind", "diff_stderr"];
+const testArgs   = ["argv", "stdin_file", "stdin_text", "created_files", "sort_stdout", "sort_stderr", "sort_output_files"]; //, "run_valgrind", "diff_stderr"];
 
 export var executableFileName  = "";
 export var referenceExecutable = "";

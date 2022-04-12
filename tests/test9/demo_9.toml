@@ -1,0 +1,12 @@
+# example diff test testing file
+# test stdin_text argument
+# matt russell
+
+[config]
+exec           = "run9"             
+ref_exec       = "ref9"
+build_target   = "demo9"                 
+
+[tests.test0]
+created_files  = ["myoutputfile"]
+sort_output_files = "True"

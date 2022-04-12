@@ -7,5 +7,5 @@ build_target = "demo3"
 # ./run tests/t_infiles/file1 tests/t_outfiles/myoutputfile < tests/t_stdin/test1
 # also, any files in created_files will be diff'd with reference.
 [tests.test3]
-argv          = ["./myoutputfile"] 
-created_files = ["./myoutputfile"]
+argv          = ["myoutputfile"] 
+created_files = ["myoutputfile"]

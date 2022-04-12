@@ -101,3 +101,13 @@ export const execShellCommand =
         });
     });
 };
+
+export async function exists (path: string) {
+    const { promises: Fs } = require('fs');  
+    try {
+      await Fs.access(path);
+      return true
+    } catch {
+      return false
+    }
+  }

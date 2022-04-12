@@ -5,8 +5,9 @@ import { referenceExecutable, executableFileName,
 import { join } from 'path';
 import { execShellCommand, getCwdUri, getExecutableFileName, 
          getTimeoutTime, getValgrindTimeoutTime, writeLocalFile, 
-         getRunWithValgrind, getValgrindFlags } from './driverUtils';
+         getRunWithValgrind, getValgrindFlags, exists } from './driverUtils';
 import { existsSync, unlinkSync, readFileSync } from 'fs';
+import { strictEqual } from 'assert';
 
 const textDecoder = new TextDecoder('utf-8');
 
@@ -91,9 +92,10 @@ export class TestCase {
         private argv?: string[],
         private stdin_file?: string,
         private output_files?: string[],
-        private stdin_text?: boolean
-        //private run_valgrind?: boolean,
-        //private diff_stderr?: boolean,
+        private stdin_text?: boolean, 
+        private sort_output_files?: boolean, 
+        private sort_stdout?: boolean, 
+        private sort_stderr?: boolean
     ) {
         this.passed       = false; 
         
@@ -106,8 +108,9 @@ export class TestCase {
             this.stdin_text = true;
         }
         this.output_files = testDict["created_files"] ?? [];
-        //this.run_valgrind = testDict["run_valgrind"] ?? true;
-        //this.diff_stderr  = testDict["diff_stderr"]  ?? "";
+        this.sort_output_files = testDict["sort_output_files"] ?? false;
+        this.sort_stdout = testDict["sort_stdout"] ?? false;
+        this.sort_stderr = testDict["sort_stderr"] ?? false;
     }
 
     getLabel() {
@@ -138,9 +141,10 @@ export class TestCase {
 
     private getOutputFiles() : string[]{
         var outfiles:string[] = [];
-        for (let output_file of this.output_files ?? []) {            
+        for (let output_file of this.output_files ?? []) {     
             const outfpath = join(getCwdUri().fsPath, output_file);
-            if (!existsSync(outfpath)) {
+            
+            if (!exists(outfpath)) {
                 outfiles.push("");
             }else{
                 outfiles.push(readFileSync(outfpath).toString('utf-8'));
@@ -149,6 +153,10 @@ export class TestCase {
         }
         console.log(outfiles);
         return outfiles;
+    }
+
+    sortByLine(s:string) : string{
+        return s.split(/\r?\n/).sort().join("\n");
     }
 
     async run(item: vscode.TestItem, options: vscode.TestRun) : Promise<void> {
@@ -175,13 +183,12 @@ export class TestCase {
         for (let arg of this.argv ?? []) {
             appendArgs += join(getCwdUri().fsPath, arg) + " ";
         }
-        appendArgs += " < " + join(stdinPath, stdinFile);
-        
-        const result       = await execShellCommand(execPath + appendArgs, {}, timeouttime);           
+        appendArgs += " < " + join(stdinPath, stdinFile); 
+        const result       = await execShellCommand(execPath + appendArgs, { cwd: getCwdUri().fsPath }, timeouttime);            
         const studOutfiles = this.getOutputFiles();        
         
         // ordering is important - get student output files before reference overwrites them.
-        const refResult    = await execShellCommand(refPath  + appendArgs, {}, timeouttime);        
+        const refResult    = await execShellCommand(refPath  + appendArgs, { cwd: getCwdUri().fsPath }, timeouttime);        
         const refOutfiles  = this.getOutputFiles();
         
         let duration = Date.now() - start;
@@ -189,12 +196,22 @@ export class TestCase {
         if (result.passed) {
             this.passed = true;
 
+            if (this.sort_stdout) {
+                result.stdout = this.sortByLine(result.stdout); 
+                refResult.stdout = this.sortByLine(refResult.stdout); 
+            }
+
             if (result.stdout !== refResult.stdout) {                
                 this.setFail(vscode.TestMessage.diff("stdout diff failed\n",
                                                       refResult.stdout,
                                                       result.stdout),
                              item, options, duration);
                 this.passed = false;            
+            }
+
+            if (this.sort_stderr) {
+                result.stderr = this.sortByLine(result.stderr);
+                refResult.stderr = this.sortByLine(refResult.stderr);
             }
 
             if (this.passed && result.stderr !== refResult.stderr) {                
@@ -207,6 +224,10 @@ export class TestCase {
             if (this.passed && this.output_files) {
                 console.log(this.output_files);
                 for (let i = 0; i < this.output_files.length; i++) {
+                    if (this.sort_output_files) {
+                        studOutfiles[i] = this.sortByLine(studOutfiles[i]);
+                        refOutfiles[i]  = this.sortByLine(refOutfiles[i]);
+                    }
                     if (studOutfiles[i] !== refOutfiles[i]) {
                         this.setFail(vscode.TestMessage.diff("output file mismatch: " + 
                                                             this.output_files[i] + '\n', 
