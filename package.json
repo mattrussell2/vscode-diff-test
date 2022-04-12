@@ -3,7 +3,7 @@
     "displayName": "Diff Unit Testing Framework",
     "description": "Diff Unit Testing Framework",
     "enableApiProposals": false,
-    "version": "0.1.8",
+    "version": "0.1.9",
     "publisher": "AutumnMoon",
     "icon": "images/icon.png",
     "engines": {
@@ -63,7 +63,11 @@
         "url": "https://www.github.com/mattrussell2/vscode-diff-test"
     },
     "scripts": {
-        "vscode:prepublish": "npm run compile",
+        "vscode:prepublish": "npm run esbuild-base -- --minify",
+        "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=./out/extension.js --external:vscode --format=cjs --platform=node",
+        "esbuild": "npm run esbuild-base -- --sourcemap",
+        "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+        "test-compile": "tsc -p ./",
         "compile": "tsc -p ./",
         "lint": "eslint . --ext .ts,.tsx",
         "watch": "tsc -watch -p ./",
@@ -81,7 +85,7 @@
     },
     "dependencies": {
         "ansi-regex": ">=5.0.1",
-        "minimist": ">=1.2.6",
+        "minimist": "^1.2.6",
         "npm": "^8.5.2",
         "toml": "^3.0.0",
         "vsce": "^2.6.7"
