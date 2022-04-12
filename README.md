@@ -43,6 +43,9 @@ All arguments for a given test are optional. The arguments are:
 argv          = ["arg1", "arg2"...] # list of arguments to your program
 stdin_file    = 'my_stdin_file'     # a file to send to your program's stdin
 created_files = ["my_outfile",...]  # a list of files created by your program. 
+sort_output_files = "True"          # will sort any output files before diff
+sort_stdout       = "True"          # will sort contents of stdout before diff
+sort_stderr       = "True"          # will sort contents of stderr before diff
 ```
 For the above test and configuration, the command-line code is equivalent: 
 ```./a.out arg1 arg2 < my_stdin_file ```
