@@ -86,7 +86,7 @@
     "dependencies": {
         "ansi-regex": ">=5.0.1",
         "minimist": "^1.2.6",
-        "npm": "^8.5.2",
+        "npm": "^8.11.0",
         "toml": "^3.0.0",
         "vsce": "^2.6.7"
     }
